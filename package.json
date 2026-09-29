@@ -1,12 +1,20 @@
 {
   "name":"veylola-ai",
-  "version":"1.0.0",
+  "version":"1.1.0",
   "private":true,
   "main":"expo-router/entry",
-  "scripts":{"start":"expo start","android":"expo start --android","web":"expo start --web"},
+  "scripts":{
+    "start":"expo start",
+    "android":"expo start --android",
+    "web":"expo start --web",
+    "prebuild":"expo prebuild"
+  },
   "dependencies":{
     "@expo/vector-icons":"^15.0.0",
     "expo":"^54.0.0",
+    "expo-document-picker":"^14.0.0",
+    "expo-image-picker":"^17.0.0",
+    "expo-media-library":"^18.2.0",
     "expo-router":"^6.0.0",
     "react":"^19.1.0",
     "react-native":"^0.81.0"
