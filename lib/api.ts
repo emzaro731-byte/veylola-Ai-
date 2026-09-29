@@ -66,8 +66,22 @@ export function askGrok(message: string, previousId?: string, options?: {
 export const generateImage = (prompt: string) =>
   request(API_BASE_URL, "/image", { prompt, size: "1024x1024", quality: "high" });
 
-export const generateVideo = (prompt: string) =>
-  request(API_BASE_URL, "/video", { prompt, seconds: 8, size: "720x1280" });
+export const generateVideo = (
+  prompt: string,
+  options?: { seconds?: 4 | 8 | 12; size?: "720x1280" | "1280x720" | "1024x1024" }
+) =>
+  request(API_BASE_URL, "/video", {
+    prompt,
+    seconds: options?.seconds ?? 8,
+    size: options?.size ?? "720x1280",
+  });
+
+export const getVideoCapabilities = async () => {
+  const res = await fetch(API_BASE_URL + "/v1/video/capabilities", { headers: headers() });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error ?? "Could not read video capabilities");
+  return data;
+};
 
 export const generateMusic = (prompt: string) =>
   request(API_BASE_URL, "/music", { prompt, duration: 30 });
