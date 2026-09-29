@@ -6,7 +6,7 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import * as MediaLibrary from "expo-media-library";
-import { generateVideo } from "../lib/api";
+import { generateVideo, getVideoCapabilities } from "../lib/api";
 import { renderLocalVideo, VideoScene, VideoProject } from "../lib/localVideo";
 
 const durations = [3, 5, 8, 10, 15, 30, 60] as const;
@@ -27,6 +27,14 @@ export default function VideoStudio() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState("");
   const [preview, setPreview] = useState<string | undefined>();
+  const [negativePrompt, setNegativePrompt] = useState("blurry, distorted face, extra fingers, duplicate subject, text, watermark");
+  const [style, setStyle] = useState("cinematic");
+  const [camera, setCamera] = useState("slow dolly, natural depth of field");
+  const [motion, setMotion] = useState("smooth realistic motion");
+  const [quality, setQuality] = useState<"draft" | "standard" | "high">("high");
+  const [aiSeconds, setAiSeconds] = useState(8);
+  const [capability, setCapability] = useState("");
+  const [aiMode, setAiMode] = useState<"text" | "image">("text");
 
   const total = useMemo(
     () => project.scenes.reduce((sum, scene) => sum + scene.duration, 0),
@@ -121,12 +129,22 @@ export default function VideoStudio() {
     setBusy(true);
     setResult("");
     try {
+      const caps = await getVideoCapabilities();
+      setCapability(caps.self_hosted ? "Self-hosted AI engine detected: up to 60s per request." : "Provider mode detected: 4/8/12s requests.");
       const size = project.ratio === "9:16" ? "720x1280" : project.ratio === "16:9" ? "1280x720" : "1024x1024";
-      const seconds = [4, 8, 12].includes(total) ? total as 4 | 8 | 12 : 8;
-      const data = await generateVideo(value, { seconds, size });
-      setResult(data?.id ? `Remote video job created: ${data.id}` : "Remote video request submitted.");
+      const seconds = caps.self_hosted ? Math.min(Math.max(aiSeconds, 5), 60) : ([4, 8, 12].includes(aiSeconds) ? aiSeconds : 8);
+      const data = await generateVideo(value, {
+        seconds,
+        size,
+        negativePrompt,
+        style,
+        camera,
+        motion,
+        quality,
+      });
+      setResult(data?.id ? `AI video job created: ${data.id}` : "AI video request submitted.");
     } catch (e) {
-      setResult(e instanceof Error ? e.message : "Remote generation failed.");
+      setResult(e instanceof Error ? e.message : "AI generation failed.");
     } finally {
       setBusy(false);
     }
@@ -194,6 +212,35 @@ export default function VideoStudio() {
             </Pressable>
           ))}
         </View>
+
+        <Text style={s.section}>AI VIDEO GENERATOR</Text>
+        <Text style={s.hint}>Generate a real AI clip through the configured video engine. The phone does not need to run the AI model itself.</Text>
+        <View style={s.row}>
+          {["text", "image"].map(m => (
+            <Pressable key={m} onPress={() => setAiMode(m as "text" | "image")} style={[s.chip, aiMode === m && s.active]}>
+              <Text style={s.chipText}>{m === "text" ? "Text → Video" : "Image → Video"}</Text>
+            </Pressable>
+          ))}
+        </View>
+        <TextInput value={style} onChangeText={setStyle} style={s.smallInput} placeholder="Style: cinematic, anime, realistic..." placeholderTextColor="#68758c" />
+        <TextInput value={camera} onChangeText={setCamera} style={s.smallInput} placeholder="Camera: dolly, crane, handheld..." placeholderTextColor="#68758c" />
+        <TextInput value={motion} onChangeText={setMotion} style={s.smallInput} placeholder="Motion: smooth, energetic..." placeholderTextColor="#68758c" />
+        <TextInput value={negativePrompt} onChangeText={setNegativePrompt} style={s.smallInput} placeholder="Negative prompt" placeholderTextColor="#68758c" />
+        <View style={s.row}>
+          {[5, 8, 12, 15, 30, 60].map(d => (
+            <Pressable key={d} onPress={() => setAiSeconds(d)} style={[s.chip, aiSeconds === d && s.active]}>
+              <Text style={s.chipText}>{d}s</Text>
+            </Pressable>
+          ))}
+        </View>
+        <View style={s.row}>
+          {(["draft", "standard", "high"] as const).map(q => (
+            <Pressable key={q} onPress={() => setQuality(q)} style={[s.chip, quality === q && s.active]}>
+              <Text style={s.chipText}>{q}</Text>
+            </Pressable>
+          ))}
+        </View>
+        {!!capability && <Text style={s.result}>{capability}</Text>}
 
         <Text style={s.section}>TIMELINE</Text>
         {project.scenes.length === 0 ? (
@@ -263,5 +310,7 @@ const s = StyleSheet.create({
   primaryText:{color:"#fff",fontWeight:"800",fontSize:16},
   secondary:{marginTop:10,height:50,borderRadius:17,borderWidth:1,borderColor:"#3157ff",alignItems:"center",justifyContent:"center"},
   secondaryText:{color:"#cbd3e5",fontWeight:"700"},
+  hint:{color:"#7f8aa3",lineHeight:19,marginBottom:10},
+  smallInput:{borderWidth:1,borderColor:"#293247",borderRadius:13,padding:11,color:"#fff",backgroundColor:"#0e1421",marginTop:7},
   result:{color:"#9db5e8",marginTop:14,lineHeight:20}
 });
