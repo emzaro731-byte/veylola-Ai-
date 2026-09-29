@@ -66,14 +66,36 @@ export function askGrok(message: string, previousId?: string, options?: {
 export const generateImage = (prompt: string) =>
   request(API_BASE_URL, "/image", { prompt, size: "1024x1024", quality: "high" });
 
-export const generateVideo = (
-  prompt: string,
-  options?: { seconds?: 4 | 8 | 12; size?: "720x1280" | "1280x720" | "1024x1024" }
-) =>
+export type VideoGenerationOptions = {
+  seconds?: number;
+  size?: "720x1280" | "1280x720" | "1024x1024";
+  model?: string;
+  negativePrompt?: string;
+  seed?: number;
+  steps?: number;
+  guidance?: number;
+  style?: string;
+  camera?: string;
+  motion?: string;
+  quality?: "draft" | "standard" | "high";
+  imageUrl?: string;
+};
+
+export const generateVideo = (prompt: string, options?: VideoGenerationOptions) =>
   request(API_BASE_URL, "/video", {
     prompt,
     seconds: options?.seconds ?? 8,
     size: options?.size ?? "720x1280",
+    ...(options?.model ? { model: options.model } : {}),
+    ...(options?.negativePrompt ? { negative_prompt: options.negativePrompt } : {}),
+    ...(options?.seed !== undefined ? { seed: options.seed } : {}),
+    ...(options?.steps !== undefined ? { steps: options.steps } : {}),
+    ...(options?.guidance !== undefined ? { guidance: options.guidance } : {}),
+    ...(options?.style ? { style: options.style } : {}),
+    ...(options?.camera ? { camera: options.camera } : {}),
+    ...(options?.motion ? { motion: options.motion } : {}),
+    ...(options?.quality ? { quality: options.quality } : {}),
+    ...(options?.imageUrl ? { image_url: options.imageUrl } : {}),
   });
 
 export const getVideoCapabilities = async () => {
