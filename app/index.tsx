@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { router } from "expo-router";
 import { askAI, askGrok, AIResponse } from "../lib/api";
 
 type Msg = { role: "user" | "assistant"; content: string; citations?: string[] };
@@ -23,9 +24,8 @@ export default function Home() {
     setLoading(true);
 
     try {
-      let data: AIResponse;
       const options = { webSearch: web, xSearch, codeExecution: code, reasoningEffort: reasoning };
-      data = provider === "grok"
+      const data: AIResponse = provider === "grok"
         ? await askGrok(text, previousId.current, options)
         : await askAI(text, previousId.current, options);
 
@@ -66,6 +66,9 @@ export default function Home() {
           <Text style={s.brand}>Veylola AI</Text>
           <Text style={s.sub}>Chat • Search • Reason • Create</Text>
         </View>
+        <Pressable onPress={() => router.push("/video")} style={s.videoButton}>
+          <Text style={s.videoButtonText}>Video</Text>
+        </Pressable>
         <Pressable onPress={clearChat} style={s.clear}><Text style={s.clearText}>New</Text></Pressable>
       </View>
 
@@ -100,7 +103,7 @@ export default function Home() {
         {messages.length === 0 && (
           <View style={s.empty}>
             <Text style={s.title}>How can I help?</Text>
-            <Text style={s.hint}>Ask questions, search the web or X, write code, and work with connected AI tools.</Text>
+            <Text style={s.hint}>Ask questions, search the web or X, write code, or open Video Studio to create videos.</Text>
           </View>
         )}
 
@@ -142,6 +145,8 @@ const s = StyleSheet.create({
   sub:{color:"#7f8aa3",marginTop:3},
   clear:{paddingHorizontal:12,paddingVertical:8,borderRadius:14,borderWidth:1,borderColor:"#293247"},
   clearText:{color:"#dbe3ff"},
+  videoButton:{paddingHorizontal:12,paddingVertical:8,borderRadius:14,borderWidth:1,borderColor:"#3157ff",marginLeft:"auto",marginRight:8},
+  videoButtonText:{color:"#dbe3ff",fontWeight:"700"},
   modes:{marginTop:12,paddingLeft:16,maxHeight:48},
   mode:{paddingHorizontal:14,paddingVertical:9,borderRadius:16,borderWidth:1,borderColor:"#293247",marginRight:8},
   active:{backgroundColor:"#1d2d67",borderColor:"#3157ff"},
