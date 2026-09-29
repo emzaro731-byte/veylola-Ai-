@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { askAI } from "../lib/api";
+import { askAI, askGrok, AIResponse } from "../lib/api";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -8,53 +8,121 @@ export default function Home() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [webSearch, setWebSearch] = useState(false);
+  const [provider, setProvider] = useState<"veylola" | "grok">("veylola");
+  const [web, setWeb] = useState(true);
+  const [xSearch, setXSearch] = useState(false);
+  const [code, setCode] = useState(false);
+  const [reasoning, setReasoning] = useState<"low" | "medium" | "high" | "xhigh">("high");
   const previousId = useRef<string | undefined>();
 
   async function send() {
     const text = input.trim();
     if (!text || loading) return;
+
     setInput("");
     setMessages(m => [...m, { role: "user", content: text }]);
     setLoading(true);
+
     try {
-      const data = await askAI(text, previousId.current, { webSearch });
+      let data: AIResponse;
+
+      if (provider === "grok") {
+        data = await askGrok(text, previousId.current, {
+          webSearch: web,
+          xSearch,
+          codeExecution: code,
+          reasoningEffort: reasoning,
+        });
+      } else {
+        data = await askAI(text, previousId.current, {
+          webSearch: web,
+          xSearch,
+          codeExecution: code,
+          reasoningEffort: reasoning,
+        });
+      }
+
       previousId.current = data.id;
-      setMessages(m => [...m, { role: "assistant", content: data.response ?? "No response returned." }]);
+      setMessages(m => [...m, {
+        role: "assistant",
+        content: data.response || "No response returned.",
+      }]);
     } catch (e) {
-      setMessages(m => [...m, { role: "assistant", content: e instanceof Error ? e.message : "Request failed" }]);
+      setMessages(m => [...m, {
+        role: "assistant",
+        content: e instanceof Error ? e.message : "Request failed",
+      }]);
     } finally {
       setLoading(false);
     }
   }
 
+  function switchProvider(next: "veylola" | "grok") {
+    setProvider(next);
+    previousId.current = undefined;
+  }
+
   return (
     <View style={s.root}>
       <Text style={s.brand}>Veylola AI</Text>
-      <Text style={s.sub}>Your AI assistant</Text>
-      <View style={s.toolbar}>
-        <Pressable onPress={() => setWebSearch(v => !v)} style={[s.tool, webSearch && s.toolActive]}>
-          <Text style={s.toolText}>{webSearch ? "✓ Web search" : "Web search"}</Text>
+      <Text style={s.sub}>Chat • Search • Reason • Create</Text>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.modes}>
+        <Pressable onPress={() => switchProvider("veylola")} style={[s.mode, provider === "veylola" && s.active]}>
+          <Text style={s.modeText}>Veylola</Text>
         </Pressable>
-        <Text style={s.status}>GPT-powered</Text>
+        <Pressable onPress={() => switchProvider("grok")} style={[s.mode, provider === "grok" && s.active]}>
+          <Text style={s.modeText}>Grok</Text>
+        </Pressable>
+        <Pressable onPress={() => setWeb(v => !v)} style={[s.mode, web && s.active]}>
+          <Text style={s.modeText}>Web {web ? "✓" : ""}</Text>
+        </Pressable>
+        <Pressable onPress={() => setXSearch(v => !v)} style={[s.mode, xSearch && s.active]}>
+          <Text style={s.modeText}>X {xSearch ? "✓" : ""}</Text>
+        </Pressable>
+        <Pressable onPress={() => setCode(v => !v)} style={[s.mode, code && s.active]}>
+          <Text style={s.modeText}>Code {code ? "✓" : ""}</Text>
+        </Pressable>
+      </ScrollView>
+
+      <View style={s.reasonRow}>
+        <Text style={s.reasonLabel}>Reasoning</Text>
+        {(["low", "medium", "high", "xhigh"] as const).map(level => (
+          <Pressable key={level} onPress={() => setReasoning(level)} style={[s.reason, reasoning === level && s.active]}>
+            <Text style={s.reasonText}>{level}</Text>
+          </Pressable>
+        ))}
       </View>
+
       <ScrollView style={s.chat} contentContainerStyle={s.content}>
         {messages.length === 0 && (
           <View style={s.empty}>
             <Text style={s.title}>How can I help?</Text>
-            <Text style={s.hint}>Chat, search the web, create images and more.</Text>
+            <Text style={s.hint}>Ask questions, search the web or X, analyze files, write code, and create media.</Text>
           </View>
         )}
+
         {messages.map((m, i) => (
           <View key={i} style={[s.bubble, m.role === "user" ? s.user : s.ai]}>
             <Text style={s.text}>{m.content}</Text>
           </View>
         ))}
+
         {loading && <ActivityIndicator />}
       </ScrollView>
+
       <View style={s.inputRow}>
-        <TextInput value={input} onChangeText={setInput} placeholder="Message Veylola AI..." placeholderTextColor="#7d8494" multiline style={s.input} />
-        <Pressable onPress={send} style={s.send}><Text style={s.sendText}>↑</Text></Pressable>
+        <TextInput
+          value={input}
+          onChangeText={setInput}
+          placeholder="Message Veylola AI..."
+          placeholderTextColor="#7d8494"
+          multiline
+          style={s.input}
+        />
+        <Pressable onPress={send} style={s.send}>
+          <Text style={s.sendText}>↑</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -64,16 +132,19 @@ const s = StyleSheet.create({
   root:{flex:1,backgroundColor:"#070b14",paddingTop:58},
   brand:{color:"#fff",fontSize:28,fontWeight:"800",paddingHorizontal:20},
   sub:{color:"#7f8aa3",paddingHorizontal:20,marginTop:3},
-  toolbar:{flexDirection:"row",alignItems:"center",paddingHorizontal:16,paddingTop:12,gap:10},
-  tool:{paddingHorizontal:12,paddingVertical:8,borderRadius:14,borderWidth:1,borderColor:"#293247"},
-  toolActive:{backgroundColor:"#1d2d67",borderColor:"#3157ff"},
-  toolText:{color:"#dbe3ff",fontSize:13},
-  status:{color:"#65708a",fontSize:12},
-  chat:{flex:1,marginTop:8},
+  modes:{marginTop:12,paddingLeft:16,maxHeight:48},
+  mode:{paddingHorizontal:14,paddingVertical:9,borderRadius:16,borderWidth:1,borderColor:"#293247",marginRight:8},
+  active:{backgroundColor:"#1d2d67",borderColor:"#3157ff"},
+  modeText:{color:"#dbe3ff",fontSize:13},
+  reasonRow:{flexDirection:"row",alignItems:"center",padding:10,gap:6},
+  reasonLabel:{color:"#7f8aa3",fontSize:12,marginRight:3},
+  reason:{paddingHorizontal:8,paddingVertical:5,borderRadius:10,borderWidth:1,borderColor:"#293247"},
+  reasonText:{color:"#cbd3e5",fontSize:11},
+  chat:{flex:1,marginTop:4},
   content:{padding:16,gap:12,paddingBottom:20},
-  empty:{alignItems:"center",marginTop:180},
+  empty:{alignItems:"center",marginTop:150,paddingHorizontal:24},
   title:{color:"#fff",fontSize:26,fontWeight:"700"},
-  hint:{color:"#8791a5",marginTop:8,textAlign:"center"},
+  hint:{color:"#8791a5",marginTop:8,textAlign:"center",lineHeight:21},
   bubble:{maxWidth:"88%",padding:14,borderRadius:18},
   user:{alignSelf:"flex-end",backgroundColor:"#3157ff"},
   ai:{alignSelf:"flex-start",backgroundColor:"#151b29"},
