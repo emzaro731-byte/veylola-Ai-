@@ -46,6 +46,15 @@ export function askAI(message: string, previousId?: string, options?: {
   }) as Promise<AIResponse>;
 }
 
+export function askGroq(message: string, options?: {
+  reasoningEffort?: "low" | "medium" | "high";
+}) {
+  return request(API_BASE_URL, "/v1/groq-api/responses", {
+    input: message,
+    ...(options?.reasoningEffort ? { reasoning_effort: options.reasoningEffort } : {}),
+  }) as Promise<AIResponse>;
+}
+
 export function askGrok(message: string, previousId?: string, options?: {
   webSearch?: boolean;
   xSearch?: boolean;
