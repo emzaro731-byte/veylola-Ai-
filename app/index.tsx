@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { askAI, askGrok, AIResponse } from "../lib/api";
 
-type Msg = { role: "user" | "assistant"; content: string };
+type Msg = { role: "user" | "assistant"; content: string; citations?: string[] };
 
 export default function Home() {
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -18,34 +18,26 @@ export default function Home() {
   async function send() {
     const text = input.trim();
     if (!text || loading) return;
-
     setInput("");
     setMessages(m => [...m, { role: "user", content: text }]);
     setLoading(true);
 
     try {
       let data: AIResponse;
-
-      if (provider === "grok") {
-        data = await askGrok(text, previousId.current, {
-          webSearch: web,
-          xSearch,
-          codeExecution: code,
-          reasoningEffort: reasoning,
-        });
-      } else {
-        data = await askAI(text, previousId.current, {
-          webSearch: web,
-          xSearch,
-          codeExecution: code,
-          reasoningEffort: reasoning,
-        });
-      }
+      const options = { webSearch: web, xSearch, codeExecution: code, reasoningEffort: reasoning };
+      data = provider === "grok"
+        ? await askGrok(text, previousId.current, options)
+        : await askAI(text, previousId.current, options);
 
       previousId.current = data.id;
+      const citations = Array.isArray(data.citations)
+        ? data.citations.map((x: any) => typeof x === "string" ? x : x?.url).filter(Boolean)
+        : [];
+
       setMessages(m => [...m, {
         role: "assistant",
         content: data.response || "No response returned.",
+        citations,
       }]);
     } catch (e) {
       setMessages(m => [...m, {
@@ -62,10 +54,20 @@ export default function Home() {
     previousId.current = undefined;
   }
 
+  function clearChat() {
+    setMessages([]);
+    previousId.current = undefined;
+  }
+
   return (
     <View style={s.root}>
-      <Text style={s.brand}>Veylola AI</Text>
-      <Text style={s.sub}>Chat • Search • Reason • Create</Text>
+      <View style={s.header}>
+        <View>
+          <Text style={s.brand}>Veylola AI</Text>
+          <Text style={s.sub}>Chat • Search • Reason • Create</Text>
+        </View>
+        <Pressable onPress={clearChat} style={s.clear}><Text style={s.clearText}>New</Text></Pressable>
+      </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.modes}>
         <Pressable onPress={() => switchProvider("veylola")} style={[s.mode, provider === "veylola" && s.active]}>
@@ -98,13 +100,19 @@ export default function Home() {
         {messages.length === 0 && (
           <View style={s.empty}>
             <Text style={s.title}>How can I help?</Text>
-            <Text style={s.hint}>Ask questions, search the web or X, analyze files, write code, and create media.</Text>
+            <Text style={s.hint}>Ask questions, search the web or X, write code, and work with connected AI tools.</Text>
           </View>
         )}
 
         {messages.map((m, i) => (
           <View key={i} style={[s.bubble, m.role === "user" ? s.user : s.ai]}>
             <Text style={s.text}>{m.content}</Text>
+            {m.citations?.length ? (
+              <View style={s.sources}>
+                <Text style={s.sourceTitle}>Sources</Text>
+                {m.citations.slice(0, 5).map((url, j) => <Text key={j} style={s.source}>{j + 1}. {url}</Text>)}
+              </View>
+            ) : null}
           </View>
         ))}
 
@@ -119,10 +127,9 @@ export default function Home() {
           placeholderTextColor="#7d8494"
           multiline
           style={s.input}
+          onSubmitEditing={send}
         />
-        <Pressable onPress={send} style={s.send}>
-          <Text style={s.sendText}>↑</Text>
-        </Pressable>
+        <Pressable onPress={send} style={s.send}><Text style={s.sendText}>↑</Text></Pressable>
       </View>
     </View>
   );
@@ -130,8 +137,11 @@ export default function Home() {
 
 const s = StyleSheet.create({
   root:{flex:1,backgroundColor:"#070b14",paddingTop:58},
-  brand:{color:"#fff",fontSize:28,fontWeight:"800",paddingHorizontal:20},
-  sub:{color:"#7f8aa3",paddingHorizontal:20,marginTop:3},
+  header:{flexDirection:"row",justifyContent:"space-between",alignItems:"center",paddingHorizontal:20},
+  brand:{color:"#fff",fontSize:28,fontWeight:"800"},
+  sub:{color:"#7f8aa3",marginTop:3},
+  clear:{paddingHorizontal:12,paddingVertical:8,borderRadius:14,borderWidth:1,borderColor:"#293247"},
+  clearText:{color:"#dbe3ff"},
   modes:{marginTop:12,paddingLeft:16,maxHeight:48},
   mode:{paddingHorizontal:14,paddingVertical:9,borderRadius:16,borderWidth:1,borderColor:"#293247",marginRight:8},
   active:{backgroundColor:"#1d2d67",borderColor:"#3157ff"},
@@ -145,10 +155,13 @@ const s = StyleSheet.create({
   empty:{alignItems:"center",marginTop:150,paddingHorizontal:24},
   title:{color:"#fff",fontSize:26,fontWeight:"700"},
   hint:{color:"#8791a5",marginTop:8,textAlign:"center",lineHeight:21},
-  bubble:{maxWidth:"88%",padding:14,borderRadius:18},
+  bubble:{maxWidth:"90%",padding:14,borderRadius:18},
   user:{alignSelf:"flex-end",backgroundColor:"#3157ff"},
   ai:{alignSelf:"flex-start",backgroundColor:"#151b29"},
   text:{color:"#fff",fontSize:16,lineHeight:23},
+  sources:{marginTop:12,paddingTop:8,borderTopWidth:1,borderTopColor:"#2a3347"},
+  sourceTitle:{color:"#aeb9d3",fontSize:12,fontWeight:"700",marginBottom:4},
+  source:{color:"#7eafff",fontSize:11,marginTop:3},
   inputRow:{flexDirection:"row",alignItems:"flex-end",padding:12,gap:8},
   input:{flex:1,maxHeight:120,minHeight:50,borderWidth:1,borderColor:"#242c3d",borderRadius:20,padding:14,color:"#fff",backgroundColor:"#0e1421"},
   send:{width:50,height:50,borderRadius:25,backgroundColor:"#3157ff",alignItems:"center",justifyContent:"center"},
