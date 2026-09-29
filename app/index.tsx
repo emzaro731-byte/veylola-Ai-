@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
-import { askAI, askGrok, AIResponse } from "../lib/api";
+import { askAI, askGrok, askGroq, AIResponse } from "../lib/api";
 
 type Msg = { role: "user" | "assistant"; content: string; citations?: string[] };
 
@@ -9,7 +9,7 @@ export default function Home() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [provider, setProvider] = useState<"veylola" | "grok">("veylola");
+  const [provider, setProvider] = useState<"veylola" | "grok" | "groq">("veylola");
   const [web, setWeb] = useState(true);
   const [xSearch, setXSearch] = useState(false);
   const [code, setCode] = useState(false);
@@ -27,7 +27,9 @@ export default function Home() {
       const options = { webSearch: web, xSearch, codeExecution: code, reasoningEffort: reasoning };
       const data: AIResponse = provider === "grok"
         ? await askGrok(text, previousId.current, options)
-        : await askAI(text, previousId.current, options);
+        : provider === "groq"
+          ? await askGroq(text, { reasoningEffort: reasoning === "xhigh" ? "high" : reasoning })
+          : await askAI(text, previousId.current, options);
 
       previousId.current = data.id;
       const citations = Array.isArray(data.citations)
@@ -49,7 +51,7 @@ export default function Home() {
     }
   }
 
-  function switchProvider(next: "veylola" | "grok") {
+  function switchProvider(next: "veylola" | "grok" | "groq") {
     setProvider(next);
     previousId.current = undefined;
   }
@@ -79,13 +81,16 @@ export default function Home() {
         <Pressable onPress={() => switchProvider("grok")} style={[s.mode, provider === "grok" && s.active]}>
           <Text style={s.modeText}>Grok</Text>
         </Pressable>
-        <Pressable onPress={() => setWeb(v => !v)} style={[s.mode, web && s.active]}>
+        <Pressable onPress={() => switchProvider("groq")} style={[s.mode, provider === "groq" && s.active]}>
+          <Text style={s.modeText}>Groq</Text>
+        </Pressable>
+        <Pressable onPress={() => setWeb(v => !v)} disabled={provider === "groq"} style={[s.mode, web && s.active, provider === "groq" && { opacity: 0.45 }]}>
           <Text style={s.modeText}>Web {web ? "✓" : ""}</Text>
         </Pressable>
-        <Pressable onPress={() => setXSearch(v => !v)} style={[s.mode, xSearch && s.active]}>
+        <Pressable onPress={() => setXSearch(v => !v)} disabled={provider === "groq"} style={[s.mode, xSearch && s.active, provider === "groq" && { opacity: 0.45 }]}>
           <Text style={s.modeText}>X {xSearch ? "✓" : ""}</Text>
         </Pressable>
-        <Pressable onPress={() => setCode(v => !v)} style={[s.mode, code && s.active]}>
+        <Pressable onPress={() => setCode(v => !v)} disabled={provider === "groq"} style={[s.mode, code && s.active, provider === "groq" && { opacity: 0.45 }]}>
           <Text style={s.modeText}>Code {code ? "✓" : ""}</Text>
         </Pressable>
       </ScrollView>
