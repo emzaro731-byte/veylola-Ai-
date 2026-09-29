@@ -1,0 +1,11 @@
+{
+  "expo":{
+    "name":"Veylola AI",
+    "slug":"veylola-ai",
+    "version":"1.0.0",
+    "orientation":"portrait",
+    "scheme":"veylolaai",
+    "userInterfaceStyle":"dark",
+    "android":{"package":"com.veylola.ai"}
+  }
+}
