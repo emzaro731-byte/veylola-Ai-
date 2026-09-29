@@ -34,7 +34,6 @@ export default function VideoStudio() {
   const [quality, setQuality] = useState<"draft" | "standard" | "high">("high");
   const [aiSeconds, setAiSeconds] = useState(8);
   const [capability, setCapability] = useState("");
-  const [aiMode, setAiMode] = useState<"text" | "image">("text");
 
   const total = useMemo(
     () => project.scenes.reduce((sum, scene) => sum + scene.duration, 0),
@@ -215,13 +214,6 @@ export default function VideoStudio() {
 
         <Text style={s.section}>AI VIDEO GENERATOR</Text>
         <Text style={s.hint}>Generate a real AI clip through the configured video engine. The phone does not need to run the AI model itself.</Text>
-        <View style={s.row}>
-          {["text", "image"].map(m => (
-            <Pressable key={m} onPress={() => setAiMode(m as "text" | "image")} style={[s.chip, aiMode === m && s.active]}>
-              <Text style={s.chipText}>{m === "text" ? "Text → Video" : "Image → Video"}</Text>
-            </Pressable>
-          ))}
-        </View>
         <TextInput value={style} onChangeText={setStyle} style={s.smallInput} placeholder="Style: cinematic, anime, realistic..." placeholderTextColor="#68758c" />
         <TextInput value={camera} onChangeText={setCamera} style={s.smallInput} placeholder="Camera: dolly, crane, handheld..." placeholderTextColor="#68758c" />
         <TextInput value={motion} onChangeText={setMotion} style={s.smallInput} placeholder="Motion: smooth, energetic..." placeholderTextColor="#68758c" />
